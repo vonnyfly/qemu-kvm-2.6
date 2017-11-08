@@ -8,6 +8,7 @@
 %global have_kvm_setup 0
 %global have_seccomp 1
 %global have_memlock_limits 0
+%global libiscsi_version 1.18.0
 
 %ifnarch %{ix86} x86_64 aarch64
     %global have_seccomp 0
@@ -157,6 +158,7 @@ Source26: vhost.conf
 Source27: kvm.conf
 Source28: 95-kvm-memlock.conf
 
+Source9999: libiscsi-%{libiscsi_version}.tar.gz
 
 Patch0001: 0001-Initial-redhat-build.patch
 Patch0002: 0002-Add-RHEL-7-machine-types.patch
@@ -1955,9 +1957,25 @@ ApplyOptionalPatch qemu-kvm-test.patch
 # for tscdeadline_latency.flat
 %ifarch x86_64
   tar -xf %{SOURCE25}
+  tar -xf %{SOURCE9999}
 %endif
 
+ApplyPatch libiscsi-fix-static-build.patch
+
 %build
+libiscsi_prefix=`pwd`/libiscsi-install
+# Build libiscsi first
+pushd libiscsi-%{libiscsi_version}
+./autogen.sh
+./configure \
+        --prefix="$libiscsi_prefix" \
+        --enable-static --disable-shared --with-pic
+make CFLAGS="-pthread" LIBS="-pthread" %{?_smp_mflags}
+make install
+popd
+
+export PKG_CONFIG_PATH=$libiscsi_prefix/lib/pkgconfig:%{_libdir}/pkgconfi
+
 buildarch="%{kvm_target}-softmmu"
 
 # --build-id option is used for giving info to the debug packages.
