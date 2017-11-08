@@ -1,0 +1,45 @@
+From 2dffb0a397d5625f83cc05d151bb76ee8706dc76 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:41 +0100
+Subject: [PATCH 07/12] usb: free leaking path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-9-marcandre.lureau@redhat.com>
+Patchwork-id: 72912
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 08/10] usb: free leaking path
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+qdev_get_dev_path() returns an allocated string, free it when no longer
+needed.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Gerd Hoffmann <kraxel@redhat.com>
+
+(cherry picked from commit 9ef617246b629109e2779835b9a3a8400029484d)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/usb/desc.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/usb/desc.c b/hw/usb/desc.c
+index adb026e..5e0e1d1 100644
+--- a/hw/usb/desc.c
++++ b/hw/usb/desc.c
+@@ -574,6 +574,7 @@ void usb_desc_create_serial(USBDevice *dev)
+     }
+     dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", dev->port->path);
+     usb_desc_set_string(dev, index, serial);
++    g_free(path);
+ }
+ 
+ const char *usb_desc_get_string(USBDevice *dev, uint8_t index)
+-- 
+1.8.3.1
+

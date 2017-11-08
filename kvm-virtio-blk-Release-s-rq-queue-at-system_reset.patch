@@ -1,0 +1,60 @@
+From 58493deea91bf4dd554823010851769d98d5bd42 Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Wed, 30 Nov 2016 06:42:57 +0100
+Subject: [PATCH 11/12] virtio-blk: Release s->rq queue at system_reset
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20161130064258.3902-2-famz@redhat.com>
+Patchwork-id: 72926
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 1/2] virtio-blk: Release s->rq queue at system_reset
+Bugzilla: 1393041
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+At system_reset, there is no point in retrying the queued request,
+because the driver that issued the request won't be around any more.
+
+Analyzed-by: Laszlo Ersek <lersek@redhat.com>
+Reported-by: Laszlo Ersek <lersek@redhat.com>
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+Message-id: 1470278654-13525-2-git-send-email-famz@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 26307f6aa451708b8c60a49d605a78bbd29f70ef)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/block/virtio-blk.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/hw/block/virtio-blk.c b/hw/block/virtio-blk.c
+index 3f88f8c..dab8ae6 100644
+--- a/hw/block/virtio-blk.c
++++ b/hw/block/virtio-blk.c
+@@ -654,6 +654,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
+ {
+     VirtIOBlock *s = VIRTIO_BLK(vdev);
+     AioContext *ctx;
++    VirtIOBlockReq *req;
+ 
+     /*
+      * This should cancel pending requests, but can't do nicely until there
+@@ -663,6 +664,14 @@ static void virtio_blk_reset(VirtIODevice *vdev)
+     aio_context_acquire(ctx);
+     blk_drain(s->blk);
+ 
++    /* We drop queued requests after blk_drain() because blk_drain() itself can
++     * produce them. */
++    while (s->rq) {
++        req = s->rq;
++        s->rq = req->next;
++        virtio_blk_free_request(req);
++    }
++
+     if (s->dataplane) {
+         virtio_blk_data_plane_stop(s->dataplane);
+     }
+-- 
+1.8.3.1
+

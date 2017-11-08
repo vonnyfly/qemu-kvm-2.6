@@ -1,0 +1,74 @@
+From a9aa25fc8e11eb5154e43c949842dc9361c4eb29 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:35 +0100
+Subject: [PATCH 01/12] numa: do not leak NumaOptions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-3-marcandre.lureau@redhat.com>
+Patchwork-id: 72906
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 02/10] numa: do not leak NumaOptions
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+In all cases, call qapi_free_NumaOptions(), by using a common ending
+block.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+(cherry picked from commit 157e94e8a2f7d3e14060d833bd1519a83099eaa9)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ numa.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/numa.c b/numa.c
+index 58be21e..b4a0a37 100644
+--- a/numa.c
++++ b/numa.c
+@@ -223,14 +223,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+     }
+ 
+     if (err) {
+-        goto error;
++        goto end;
+     }
+ 
+     switch (object->type) {
+     case NUMA_OPTIONS_KIND_NODE:
+         numa_node_parse(object->u.node.data, opts, &err);
+         if (err) {
+-            goto error;
++            goto end;
+         }
+         nb_numa_nodes++;
+         break;
+@@ -238,13 +238,14 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
+         abort();
+     }
+ 
+-    return 0;
+-
+-error:
+-    error_report_err(err);
++end:
+     qapi_free_NumaOptions(object);
++    if (err) {
++        error_report_err(err);
++        return -1;
++    }
+ 
+-    return -1;
++    return 0;
+ }
+ 
+ static char *enumerate_cpus(unsigned long *cpus, int max_cpus)
+-- 
+1.8.3.1
+

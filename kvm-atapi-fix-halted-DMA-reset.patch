@@ -1,0 +1,43 @@
+From 5080548791560ec211bcdfe1ff621b9bd2893895 Mon Sep 17 00:00:00 2001
+From: John Snow <jsnow@redhat.com>
+Date: Thu, 29 Sep 2016 05:11:03 +0200
+Subject: [PATCH 2/6] atapi: fix halted DMA reset
+
+RH-Author: John Snow <jsnow@redhat.com>
+Message-id: <1475104263-20809-3-git-send-email-jsnow@redhat.com>
+Patchwork-id: 72434
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 2/2] atapi: fix halted DMA reset
+Bugzilla: 1393043
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Markus Armbruster <armbru@redhat.com>
+
+Followup to 87ac25fd, this time for ATAPI DMA.
+
+Reported-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: John Snow <jsnow@redhat.com>
+Message-id: 1470164128-28158-1-git-send-email-jsnow@redhat.com
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: John Snow <jsnow@redhat.com>
+(cherry picked from commit 7f951b2d7765f68ae1e563c2fed44071ca774790)
+Signed-off-by: John Snow <jsnow@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ide/atapi.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/ide/atapi.c b/hw/ide/atapi.c
+index 2bb606c..8592a4a 100644
+--- a/hw/ide/atapi.c
++++ b/hw/ide/atapi.c
+@@ -383,6 +383,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
+     if (ret < 0) {
+         if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
+             if (s->bus->error_status) {
++                s->bus->dma->aiocb = NULL;
+                 return;
+             }
+             goto eot;
+-- 
+1.8.3.1
+

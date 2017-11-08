@@ -1,0 +1,66 @@
+From 61c7f5530e73b0786394b8fdeb97dcd504220703 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:39 +0100
+Subject: [PATCH 05/12] virtio-input: free config list
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-7-marcandre.lureau@redhat.com>
+Patchwork-id: 72910
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 06/10] virtio-input: free config list
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Clear the list when finalizing. The list is created during realize with
+virtio_input_idstr_config() and later by further calls to
+virtio_input_init_config() and virtio_input_add_config().
+
+This leak can be reproduced with device-introspect-test -p
+/x86_64/device/introspect/concrete.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Gerd Hoffmann <kraxel@redhat.com>
+
+(cherry picked from commit 0137a557aac07480ff8447ef372f0581af5ee65a)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/input/virtio-input.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/hw/input/virtio-input.c b/hw/input/virtio-input.c
+index edf6990..d0587b8 100644
+--- a/hw/input/virtio-input.c
++++ b/hw/input/virtio-input.c
+@@ -285,6 +285,16 @@ static void virtio_input_device_realize(DeviceState *dev, Error **errp)
+                     virtio_input_save, virtio_input_load, vinput);
+ }
+ 
++static void virtio_input_finalize(Object *obj)
++{
++    VirtIOInput *vinput = VIRTIO_INPUT(obj);
++    VirtIOInputConfig *cfg, *next;
++
++    QTAILQ_FOREACH_SAFE(cfg, &vinput->cfg_list, node, next) {
++        QTAILQ_REMOVE(&vinput->cfg_list, cfg, node);
++        g_free(cfg);
++    }
++}
+ static void virtio_input_device_unrealize(DeviceState *dev, Error **errp)
+ {
+     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(dev);
+@@ -332,6 +342,7 @@ static const TypeInfo virtio_input_info = {
+     .class_size    = sizeof(VirtIOInputClass),
+     .class_init    = virtio_input_class_init,
+     .abstract      = true,
++    .instance_finalize = virtio_input_finalize,
+ };
+ 
+ /* ----------------------------------------------------------------- */
+-- 
+1.8.3.1
+

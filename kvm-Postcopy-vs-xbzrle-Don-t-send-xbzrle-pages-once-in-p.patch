@@ -1,0 +1,62 @@
+From 8b8b5f4749f65221dd88579638971b68b8e880e9 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Wed, 19 Oct 2016 20:43:48 +0200
+Subject: [PATCH 5/6] Postcopy vs xbzrle: Don't send xbzrle pages once in
+ postcopy [for 2.8]
+
+RH-Author: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Message-id: <20161019144348.14520-2-dgilbert@redhat.com>
+Patchwork-id: 72613
+O-Subject: [RHEL-7.4/7.3.z qemu-kvm-rhev PATCH 1/1] Postcopy vs xbzrle: Don't send xbzrle pages once in postcopy [for 2.8]
+Bugzilla: 1395360
+RH-Acked-by: John Snow <jsnow@redhat.com>
+RH-Acked-by: Juan Quintela <quintela@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+
+xbzrle relies on reading pages that have already been sent
+to the destination and then applying the modifications; we can't
+do that in postcopy because the destination may well have
+modified the page already or the page has been discarded.
+
+I already didn't allow reception of xbzrle pages, but I
+forgot to add the test to stop them being sent.
+
+Enabling both xbzrle and postcopy can make some sense;
+if you think that your migration might finish if you
+have xbzrle, then when it doesn't complete you flick
+over to postcopy and stop xbzrle'ing.
+
+Symptom is:
+
+Unknown combination of migration flags: 0x60 (postcopy mode)
+(either 0x60 or 0x40)
+
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+Signed-off-by: Juan Quintela <quintela@redhat.com>
+(cherry picked from commit 2ebeaec012b4e5695612774c44f14c61ab46c72c)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ migration/ram.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/migration/ram.c b/migration/ram.c
+index 96faa74..7b98266 100644
+--- a/migration/ram.c
++++ b/migration/ram.c
+@@ -774,7 +774,9 @@ static int ram_save_page(QEMUFile *f, PageSearchStatus *pss,
+              * page would be stale
+              */
+             xbzrle_cache_zero_page(current_addr);
+-        } else if (!ram_bulk_stage && migrate_use_xbzrle()) {
++        } else if (!ram_bulk_stage &&
++                   !migration_in_postcopy(migrate_get_current()) &&
++                   migrate_use_xbzrle()) {
+             pages = save_xbzrle_page(f, &p, current_addr, block,
+                                      offset, last_stage, bytes_transferred);
+             if (!last_stage) {
+-- 
+1.8.3.1
+

@@ -1,0 +1,61 @@
+From e593dee59137dc8eefdc0c98b9c87de3da5b2d0e Mon Sep 17 00:00:00 2001
+From: Wei Huang <wei@redhat.com>
+Date: Wed, 7 Sep 2016 15:19:33 +0200
+Subject: [PATCH] ARM: ACPI: fix the AML ID format for CPU devices
+
+RH-Author: Wei Huang <wei@redhat.com>
+Message-id: <1473261573-2869-1-git-send-email-wei@redhat.com>
+Patchwork-id: 72268
+O-Subject: [RHEV-73 qemu-kvm-rhev 1/1] ARM: ACPI: fix the AML ID format for CPU devices
+Bugzilla: 1373733
+RH-Acked-by: Auger Eric <eric.auger@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Andrew Jones <drjones@redhat.com>
+
+BZ: https://bugzilla.redhat.com/show_bug.cgi?id=1373733
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=11713487
+Upstream: Yes, in QEMU target-arm.next tree
+
+Current QEMU will stall guest VM booting under ACPI mode when vcpu count
+is >= 12. Analyzing the booting log, it turns out that DSDT table can't
+be loaded correctly due to "Invalid character(s) in name (0x62303043),
+repaired: [C00*]". This is because existing QEMU uses a lower case AML
+ID for CPU devices (e.g. C000, C001, ..., C00a, C00b). The ACPI code
+inside guest VM detects this lower case character as an invalid character
+(see acpi_ut_valid_acpi_char() in drivers/acpi/acpica/utstring.c file)
+and converts it to "*". This causes duplicated IDs (i.e. "C00a" ==>"C00*"
+and "C00b" ==> "C00*"). So ACPI refuses to load the table.
+
+This patch fixes the problem by changing the format with a upper case
+character. It matches the CPU ID formats used in other parts of QEMU
+code.
+
+Reported-by: Eric Auger <eric.auger@redhat.com>
+Signed-off-by: Wei Huang <wei@redhat.com>
+Reviewed-by: Shannon Zhao <shannon.zhao@linaro.org>
+Reviewed-by: Eric Auger <eric.auger@redhat.com>
+Tested-by: Eric Auger <eric.auger@redhat.com>
+Message-id: 1472852809-23042-1-git-send-email-wei@redhat.com
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit f460be435f8750d5d1484d3d8b9e5b2c334f0e20)
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/arm/virt-acpi-build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/arm/virt-acpi-build.c b/hw/arm/virt-acpi-build.c
+index ac6be35..405fafc 100644
+--- a/hw/arm/virt-acpi-build.c
++++ b/hw/arm/virt-acpi-build.c
+@@ -52,7 +52,7 @@ static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
+     uint16_t i;
+ 
+     for (i = 0; i < smp_cpus; i++) {
+-        Aml *dev = aml_device("C%03x", i);
++        Aml *dev = aml_device("C%.03X", i);
+         aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0007")));
+         aml_append(dev, aml_name_decl("_UID", aml_int(i)));
+         aml_append(scope, dev);
+-- 
+1.8.3.1
+

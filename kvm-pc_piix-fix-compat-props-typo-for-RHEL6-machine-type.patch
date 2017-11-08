@@ -1,0 +1,43 @@
+From 5d6f1d6d8ece01d280623c806fba338ae8ce55e3 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Thu, 15 Dec 2016 17:31:55 +0100
+Subject: [PATCH 1/2] pc_piix: fix compat props typo for RHEL6 machine types
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20161215173155.24805-1-pbonzini@redhat.com>
+Patchwork-id: 73071
+O-Subject: [RHEL7.4/RHEL7.3.z qemu-kvm-rhev PATCH] pc_piix: fix compat props typo for RHEL6 machine types
+Bugzilla: 1408122
+RH-Acked-by: Eduardo Habkost <ehabkost@redhat.com>
+RH-Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+RH-Acked-by: John Snow <jsnow@redhat.com>
+
+Due to a typo, the x2apic has been reduced to his smaller brother,
+the x1apic.  Unfortunately, the x1apic property does not exist and
+QEMU complains.
+
+Reported by a CentOS user, thanks to Sandro for forwarding it to me;
+the bug was introduced in the 2.6.0 rebase.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/i386/pc_piix.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/i386/pc_piix.c b/hw/i386/pc_piix.c
+index ba04b47..5d68a47 100644
+--- a/hw/i386/pc_piix.c
++++ b/hw/i386/pc_piix.c
+@@ -1461,7 +1461,7 @@ DEFINE_PC_MACHINE(rhel700, "pc-i440fx-rhel7.0.0", pc_init_rhel700,
+         },\
+         {\
+             .driver = "Opteron_G4" "-" TYPE_X86_CPU,\
+-            .property = "x1apic",\
++            .property = "x2apic",\
+             .value = "off",\
+         },\
+         {\
+-- 
+1.8.3.1
+

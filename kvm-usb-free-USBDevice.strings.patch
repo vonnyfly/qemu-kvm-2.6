@@ -1,0 +1,51 @@
+From 4345e5ca383a51372ebde76891483974bfa80f75 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:40 +0100
+Subject: [PATCH 06/12] usb: free USBDevice.strings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-8-marcandre.lureau@redhat.com>
+Patchwork-id: 72911
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 07/10] usb: free USBDevice.strings
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The list is created during instance init and further populated with
+usb_desc_set_string(). Clear it when unrealizing the device.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Gerd Hoffmann <kraxel@redhat.com>
+
+(cherry picked from commit ec507f112361ddf6dac0f0a30e84d9da1b4910b6)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/usb/bus.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hw/usb/bus.c b/hw/usb/bus.c
+index 16c3461..8651299 100644
+--- a/hw/usb/bus.c
++++ b/hw/usb/bus.c
+@@ -279,6 +279,13 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
+ static void usb_qdev_unrealize(DeviceState *qdev, Error **errp)
+ {
+     USBDevice *dev = USB_DEVICE(qdev);
++    USBDescString *s, *next;
++
++    QLIST_FOREACH_SAFE(s, &dev->strings, next, next) {
++        QLIST_REMOVE(s, next);
++        g_free(s->str);
++        g_free(s);
++    }
+ 
+     if (dev->attached) {
+         usb_device_detach(dev);
+-- 
+1.8.3.1
+

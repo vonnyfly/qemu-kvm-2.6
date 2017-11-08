@@ -1,0 +1,58 @@
+From b61b33d1f0dead08411c742002c8a53edfaed9f2 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:37 +0100
+Subject: [PATCH 03/12] char: free MuxDriver when closing
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-5-marcandre.lureau@redhat.com>
+Patchwork-id: 72908
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 04/10] char: free MuxDriver when closing
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Similarly to other chr_close callbacks, free char type specific data.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+(cherry picked from commit 1371a3693650c4cf5f12bc103a8c0dae83e6de15)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ qemu-char.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/qemu-char.c b/qemu-char.c
+index 6c194aa..f3edf8d 100644
+--- a/qemu-char.c
++++ b/qemu-char.c
+@@ -788,6 +788,13 @@ static GSource *mux_chr_add_watch(CharDriverState *s, GIOCondition cond)
+     return d->drv->chr_add_watch(d->drv, cond);
+ }
+ 
++static void mux_chr_close(struct CharDriverState *chr)
++{
++    MuxDriver *d = chr->opaque;
++
++    g_free(d);
++}
++
+ static CharDriverState *qemu_chr_open_mux(const char *id,
+                                           ChardevBackend *backend,
+                                           ChardevReturn *ret, Error **errp)
+@@ -812,6 +819,7 @@ static CharDriverState *qemu_chr_open_mux(const char *id,
+     chr->opaque = d;
+     d->drv = drv;
+     d->focus = -1;
++    chr->chr_close = mux_chr_close;
+     chr->chr_write = mux_chr_write;
+     chr->chr_update_read_handler = mux_chr_update_read_handler;
+     chr->chr_accept_input = mux_chr_accept_input;
+-- 
+1.8.3.1
+

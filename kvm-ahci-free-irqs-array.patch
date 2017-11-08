@@ -1,0 +1,46 @@
+From c62eed006774874876503b98b9d6572235e1e369 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:38 +0100
+Subject: [PATCH 04/12] ahci: free irqs array
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-6-marcandre.lureau@redhat.com>
+Patchwork-id: 72909
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 05/10] ahci: free irqs array
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Each irq is referenced by the IDEBus in ide_init2(), thus we can free
+the no longer used array.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: John Snow <jsnow@redhat.com>
+Acked-by: John Snow <jsnow@redhat.com>
+
+(cherry picked from commit 9d324b0e67c2b570df389c1361f591b95a4e4278)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ide/ahci.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/ide/ahci.c b/hw/ide/ahci.c
+index 629fb1b..476a728 100644
+--- a/hw/ide/ahci.c
++++ b/hw/ide/ahci.c
+@@ -1477,6 +1477,7 @@ void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
+         ad->port.dma->ops = &ahci_dma_ops;
+         ide_register_restart_cb(&ad->port);
+     }
++    g_free(irqs);
+ }
+ 
+ void ahci_uninit(AHCIState *s)
+-- 
+1.8.3.1
+

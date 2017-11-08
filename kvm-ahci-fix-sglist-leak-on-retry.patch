@@ -1,0 +1,119 @@
+From 60f4321b64653ea16780611a45871d902e94c7ba Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Tue, 29 Nov 2016 07:35:43 +0100
+Subject: [PATCH 08/12] ahci: fix sglist leak on retry
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-id: <20161129073543.13711-11-marcandre.lureau@redhat.com>
+Patchwork-id: 72914
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 10/10] ahci: fix sglist leak on retry
+Bugzilla: 1397745
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+ahci-test /x86_64/ahci/io/dma/lba28/retry triggers the following leak:
+
+Direct leak of 16 byte(s) in 1 object(s) allocated from:
+    #0 0x7fc4b2a25e20 in malloc (/lib64/libasan.so.3+0xc6e20)
+    #1 0x7fc4993bce58 in g_malloc (/lib64/libglib-2.0.so.0+0x4ee58)
+    #2 0x556a187d4b34 in ahci_populate_sglist hw/ide/ahci.c:896
+    #3 0x556a187d8237 in ahci_dma_prepare_buf hw/ide/ahci.c:1367
+    #4 0x556a187b5a1a in ide_dma_cb hw/ide/core.c:844
+    #5 0x556a187d7eec in ahci_start_dma hw/ide/ahci.c:1333
+    #6 0x556a187b650b in ide_start_dma hw/ide/core.c:921
+    #7 0x556a187b61e6 in ide_sector_start_dma hw/ide/core.c:911
+    #8 0x556a187b9e26 in cmd_write_dma hw/ide/core.c:1486
+    #9 0x556a187bd519 in ide_exec_cmd hw/ide/core.c:2027
+    #10 0x556a187d71c5 in handle_reg_h2d_fis hw/ide/ahci.c:1204
+    #11 0x556a187d7681 in handle_cmd hw/ide/ahci.c:1254
+    #12 0x556a187d168a in check_cmd hw/ide/ahci.c:510
+    #13 0x556a187d0afc in ahci_port_write hw/ide/ahci.c:314
+    #14 0x556a187d105d in ahci_mem_write hw/ide/ahci.c:435
+    #15 0x556a1831d959 in memory_region_write_accessor /home/elmarco/src/qemu/memory.c:525
+    #16 0x556a1831dc35 in access_with_adjusted_size /home/elmarco/src/qemu/memory.c:591
+    #17 0x556a18323ce3 in memory_region_dispatch_write /home/elmarco/src/qemu/memory.c:1262
+    #18 0x556a1828cf67 in address_space_write_continue /home/elmarco/src/qemu/exec.c:2578
+    #19 0x556a1828d20b in address_space_write /home/elmarco/src/qemu/exec.c:2635
+    #20 0x556a1828d92b in address_space_rw /home/elmarco/src/qemu/exec.c:2737
+    #21 0x556a1828daf7 in cpu_physical_memory_rw /home/elmarco/src/qemu/exec.c:2746
+    #22 0x556a183068d3 in cpu_physical_memory_write /home/elmarco/src/qemu/include/exec/cpu-common.h:72
+    #23 0x556a18308194 in qtest_process_command /home/elmarco/src/qemu/qtest.c:382
+    #24 0x556a18309999 in qtest_process_inbuf /home/elmarco/src/qemu/qtest.c:573
+    #25 0x556a18309a4a in qtest_read /home/elmarco/src/qemu/qtest.c:585
+    #26 0x556a18598b85 in qemu_chr_be_write_impl /home/elmarco/src/qemu/qemu-char.c:387
+    #27 0x556a18598c52 in qemu_chr_be_write /home/elmarco/src/qemu/qemu-char.c:399
+    #28 0x556a185a2afa in tcp_chr_read /home/elmarco/src/qemu/qemu-char.c:2902
+    #29 0x556a18cbaf52 in qio_channel_fd_source_dispatch io/channel-watch.c:84
+
+Follow John Snow recommendation:
+  Everywhere else ncq_err is used, it is accompanied by a list cleanup
+  except for ncq_cb, which is the case you are fixing here.
+
+  Move the sglist destruction inside of ncq_err and then delete it from
+  the other two locations to keep it tidy.
+
+  Call dma_buf_commit in ide_dma_cb after the early return. Though, this
+  is also a little wonky because this routine does more than clear the
+  list, but it is at the moment the centralized "we're done with the
+  sglist" function and none of the other side effects that occur in
+  dma_buf_commit will interfere with the reset that occurs from
+  ide_restart_bh, I think
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: John Snow <jsnow@redhat.com>
+
+(cherry picked from commit 5839df7b71540a2af2580bb53ad1e2005bb175e6)
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/ide/ahci.c | 3 +--
+ hw/ide/core.c | 1 +
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/hw/ide/ahci.c b/hw/ide/ahci.c
+index 476a728..3290e87 100644
+--- a/hw/ide/ahci.c
++++ b/hw/ide/ahci.c
+@@ -919,6 +919,7 @@ static void ncq_err(NCQTransferState *ncq_tfs)
+     ide_state->error = ABRT_ERR;
+     ide_state->status = READY_STAT | ERR_STAT;
+     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
++    qemu_sglist_destroy(&ncq_tfs->sglist);
+     ncq_tfs->used = 0;
+ }
+ 
+@@ -1024,7 +1025,6 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
+     default:
+         DPRINTF(port, "error: unsupported NCQ command (0x%02x) received\n",
+                 ncq_tfs->cmd);
+-        qemu_sglist_destroy(&ncq_tfs->sglist);
+         ncq_err(ncq_tfs);
+     }
+ }
+@@ -1091,7 +1091,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
+         error_report("ahci: PRDT length for NCQ command (0x%zx) "
+                      "is smaller than the requested size (0x%zx)",
+                      ncq_tfs->sglist.size, size);
+-        qemu_sglist_destroy(&ncq_tfs->sglist);
+         ncq_err(ncq_tfs);
+         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
+         return;
+diff --git a/hw/ide/core.c b/hw/ide/core.c
+index 4a6adbc..5d9def6 100644
+--- a/hw/ide/core.c
++++ b/hw/ide/core.c
+@@ -808,6 +808,7 @@ static void ide_dma_cb(void *opaque, int ret)
+     if (ret < 0) {
+         if (ide_handle_rw_error(s, -ret, ide_dma_cmd_to_retry(s->dma_cmd))) {
+             s->bus->dma->aiocb = NULL;
++            dma_buf_commit(s, 0);
+             return;
+         }
+     }
+-- 
+1.8.3.1
+

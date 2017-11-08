@@ -1,0 +1,47 @@
+From f5d0b55470a1bcd6ae1a038ac15401a140cb86ef Mon Sep 17 00:00:00 2001
+From: Fam Zheng <famz@redhat.com>
+Date: Wed, 30 Nov 2016 06:42:58 +0100
+Subject: [PATCH 12/12] virtio-blk: Remove stale comment about draining
+
+RH-Author: Fam Zheng <famz@redhat.com>
+Message-id: <20161130064258.3902-3-famz@redhat.com>
+Patchwork-id: 72927
+O-Subject: [RHEV-7.3.z qemu-kvm-rhev PATCH 2/2] virtio-blk: Remove stale comment about draining
+Bugzilla: 1393041
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Laurent Vivier <lvivier@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+This is stale after commit 6e40b3bf (virtio-blk: Use blk_drain() to
+drain IO requests), remove it.
+
+Suggested-by: Laszlo Ersek <lersek@redhat.com>
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+Message-id: 1470278654-13525-3-git-send-email-famz@redhat.com
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 27d1b87688dcea8702f06b5240abf6b8d8f53346)
+Signed-off-by: Fam Zheng <famz@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/block/virtio-blk.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/hw/block/virtio-blk.c b/hw/block/virtio-blk.c
+index dab8ae6..53511c3 100644
+--- a/hw/block/virtio-blk.c
++++ b/hw/block/virtio-blk.c
+@@ -656,10 +656,6 @@ static void virtio_blk_reset(VirtIODevice *vdev)
+     AioContext *ctx;
+     VirtIOBlockReq *req;
+ 
+-    /*
+-     * This should cancel pending requests, but can't do nicely until there
+-     * are per-device request lists.
+-     */
+     ctx = blk_get_aio_context(s->blk);
+     aio_context_acquire(ctx);
+     blk_drain(s->blk);
+-- 
+1.8.3.1
+

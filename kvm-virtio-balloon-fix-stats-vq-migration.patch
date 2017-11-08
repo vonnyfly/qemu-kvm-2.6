@@ -1,0 +1,75 @@
+From ac60d30c979f793cb3e0c107a2e0f643a5efa2c7 Mon Sep 17 00:00:00 2001
+From: Ladi Prosek <lprosek@redhat.com>
+Date: Mon, 31 Oct 2016 21:32:39 +0100
+Subject: [PATCH 10/12] virtio-balloon: fix stats vq migration
+
+RH-Author: Ladi Prosek <lprosek@redhat.com>
+Message-id: <1477931559-21181-3-git-send-email-lprosek@redhat.com>
+Patchwork-id: 72679
+O-Subject: [RHEL-7.4/7.3.z qemu-kvm-rhev PATCH 2/2] virtio-balloon: fix stats vq migration
+Bugzilla: 1402509
+RH-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+
+The statistics virtqueue is not migrated properly because virtio-balloon
+does not include s->stats_vq_elem in the migration stream.
+
+After migration the statistics virtqueue hangs because the host never
+completes the last element (s->stats_vq_elem is NULL on the destination
+QEMU).  Therefore the guest never submits new elements and the virtqueue
+is hung.
+
+Instead of changing the migration stream format in an incompatible way,
+detect the migration case and rewind the virtqueue so the last element
+can be completed.
+
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Roman Kagan <rkagan@virtuozzo.com>
+Cc: Stefan Hajnoczi <stefanha@redhat.com>
+Suggested-by: Roman Kagan <rkagan@virtuozzo.com>
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 4a1e48becab81020adfb74b22c76a595f2d02a01)
+Signed-off-by: Ladi Prosek <lprosek@redhat.com>
+Signed-off-by: Miroslav Rezanina <mrezanin@redhat.com>
+---
+ hw/virtio/virtio-balloon.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index bffdab3..a57530d 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -484,6 +484,18 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
+     }
+ }
+ 
++static void virtio_balloon_set_status(VirtIODevice *vdev, uint8_t status)
++{
++    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
++
++    if (!s->stats_vq_elem && vdev->vm_running &&
++        (status & VIRTIO_CONFIG_S_DRIVER_OK) && virtqueue_rewind(s->svq, 1)) {
++        /* poll stats queue for the element we have discarded when the VM
++         * was stopped */
++        virtio_balloon_receive_stats(vdev, s->svq);
++    }
++}
++
+ static void virtio_balloon_instance_init(Object *obj)
+ {
+     VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+@@ -518,6 +530,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
+     vdc->get_features = virtio_balloon_get_features;
+     vdc->save = virtio_balloon_save_device;
+     vdc->load = virtio_balloon_load_device;
++    vdc->set_status = virtio_balloon_set_status;
+ }
+ 
+ static const TypeInfo virtio_balloon_info = {
+-- 
+1.8.3.1
+
