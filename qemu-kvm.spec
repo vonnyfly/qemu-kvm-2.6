@@ -1195,6 +1195,9 @@ Patch524: kvm-pc_piix-fix-compat-props-typo-for-RHEL6-machine-type.patch
 # For bz#1410200 - qemu gets SIGSEGV when hot-plug a vhostuser network
 Patch525: kvm-net-don-t-poke-at-chardev-internal-QemuOpts.patch
 
+# Enable nvme
+Patch526: kvm-enable-nvme-emulation.patch
+
 BuildRequires: zlib-devel
 BuildRequires: SDL-devel
 BuildRequires: which
@@ -1951,6 +1954,7 @@ ApplyOptionalPatch()
 %patch523 -p1
 %patch524 -p1
 %patch525 -p1
+%patch526 -p1
 
 ApplyOptionalPatch qemu-kvm-test.patch
 

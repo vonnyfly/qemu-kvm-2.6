@@ -1,0 +1,21 @@
+From a14fce173cf4e268d5e0236b29015fce5ad346f0 Mon Sep 17 00:00:00 2001
+From: Li Feng <fengli@smartx.com>
+Date: Sun, 7 Jan 2018 21:33:00 +0800
+Subject: [PATCH] kvm enable nvme emulation
+
+---
+ default-configs/pci.mak | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/default-configs/pci.mak b/default-configs/pci.mak
+index 57106cc..83f77a2 100644
+--- a/default-configs/pci.mak
++++ b/default-configs/pci.mak
+@@ -20,3 +20,4 @@ CONFIG_PCI_TESTDEV=y
+ CONFIG_VGA=y
+ CONFIG_VGA_PCI=y
+ CONFIG_IVSHMEM=$(CONFIG_EVENTFD)
++CONFIG_NVME_PCI=y
+-- 
+2.11.0
+
